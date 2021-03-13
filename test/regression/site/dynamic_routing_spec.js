@@ -77,7 +77,7 @@ describe('Dynamic Routing', function () {
 
                     $('title').text().should.equal('Ghost');
                     $('.content .post').length.should.equal(5);
-                    $('.poweredby').text().should.equal('Proudly published with Ghost');
+                    $('.poweredby').text().should.equal('Powered by Mindspun');
                     $('body.home-template').length.should.equal(1);
                     $('article.post').length.should.equal(5);
                     $('article.tag-getting-started').length.should.equal(5);
@@ -209,7 +209,7 @@ describe('Dynamic Routing', function () {
 
                     $('body').attr('class').should.eql('tag-template tag-getting-started nav-closed');
                     $('.content .post').length.should.equal(5);
-                    $('.poweredby').text().should.equal('Proudly published with Ghost');
+                    $('.poweredby').text().should.equal('Powered by Mindspun');
                     $('article.post').length.should.equal(5);
                     $('article.tag-getting-started').length.should.equal(5);
 

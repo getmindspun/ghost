@@ -201,7 +201,7 @@ describe('Default Frontend routing', function () {
             $('.post-title').text().should.equal('Welcome to Ghost');
 
             $('.content .post').length.should.equal(1);
-            $('.powered').text().should.equal(' Published with Ghost');
+            $('.powered').text().should.equal(' Published with Mindspun');
             $('body.amp-template').length.should.equal(1);
             $('article.post').length.should.equal(1);
 

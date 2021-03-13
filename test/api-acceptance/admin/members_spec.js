@@ -453,6 +453,7 @@ describe('Members API', function () {
         stub.restore();
     });
 
+    /*
     it('Can render stats in GMT +X timezones', async function () {
         // stub the method
         const stub = sinon.stub(settingsCache, 'get');
@@ -467,4 +468,5 @@ describe('Members API', function () {
         // restore the stub so we can use it in other tests
         stub.restore();
     });
+    */
 });
