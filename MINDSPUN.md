@@ -1,5 +1,46 @@
 # Mindspun
 
+## Setup
+git remote add upstream git@github.com:TryGhost/Admin.git
+
+nvm use lts/fermium
+rm -rf node_modules
+yarn global add knex-migrator grunt-cli ember-cli
+yarn install
+
+## Update ghost-admin
+Go to the ghost-admin/Admin repo:
+```shell
+git checkout main
+git pull upstream main
+git push # push upstream changes to our main branch
+git checkout <COMMIT> -b <TAG>  # e.g. v4.2.0
+git checkout steady
+git merge <TAG>
+```
+
+Ghost:
+```shell
+cd core/client
+git pull
+```
+
+To use the upstream version of a file:
+```shell
+git checkout --theirs /path/to/file
+```
+
+
+### Testing admin
+```shell
+ember test
+```
+
+### Testing Ghost
+```shell
+grunt test-all
+```
+
 ## Build
 ```shell
 grunt release
