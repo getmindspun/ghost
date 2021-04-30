@@ -19,11 +19,31 @@ git checkout steady
 git merge <TAG>
 ```
 
+```
+git tag <TAG> # e.g. v4.2.0-1
+git push
+```
+
+
 Ghost:
+```shell
+git checkout main
+git pull upstream main
+git push # push upstream changes to our main branch
+git checkout <COMMIT> -b <TAG>  # e.g. v4.2.0
+git checkout steady
+git merge <TAG>
+
 ```shell
 cd core/client
 git pull
 ```
+
+Verify the submodule is on the right commit and go back to the top of the Ghost repo.
+
+
+
+### General notes
 
 To use the upstream version of a file:
 ```shell

@@ -15,7 +15,7 @@ const emailAnalyticsService = require('../../core/server/services/email-analytic
 const permissions = require('../../core/server/services/permissions');
 const settingsService = require('../../core/server/services/settings');
 const settingsCache = require('../../core/server/services/settings/cache');
-const themes = require('../../core/frontend/services/themes');
+const themeService = require('../../core/frontend/services/themes');
 
 // Other Test Utilities
 const context = require('./fixtures/context');
@@ -478,6 +478,18 @@ const fixtures = {
                 return models.MemberStripeCustomer.add(customer, context.internal);
             });
         }).then(function () {
+            return Promise.each(_.cloneDeep(DataGenerator.forKnex.products), function (product) {
+                return models.Product.add(product, context.internal);
+            });
+        }).then(function () {
+            return Promise.each(_.cloneDeep(DataGenerator.forKnex.stripe_products), function (stripeProduct) {
+                return models.StripeProduct.add(stripeProduct, context.internal);
+            });
+        }).then(function () {
+            return Promise.each(_.cloneDeep(DataGenerator.forKnex.stripe_prices), function (stripePrice) {
+                return models.StripePrice.add(stripePrice, context.internal);
+            });
+        }).then(function () {
             return Promise.each(_.cloneDeep(DataGenerator.forKnex.stripe_customer_subscriptions), function (subscription) {
                 return models.StripeCustomerSubscription.add(subscription, context.internal);
             });
@@ -584,7 +596,7 @@ const toDoList = {
         return fixtures.insertInvites();
     },
     themes: function loadThemes() {
-        return themes.loadAll();
+        return themeService.loadAll();
     },
     webhooks: function insertWebhooks() {
         return fixtures.insertWebhooks();
