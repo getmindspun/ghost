@@ -37,13 +37,21 @@ git push # push upstream changes to our main branch
 git checkout <COMMIT> -b <TAG>  # e.g. v4.2.0
 git checkout steady
 git merge <TAG>
+```
+During merge:
+* add content/themes/casper and core/client
+* resolve package.json
+* ... and any others.
 
 ```shell
 cd core/client
 git pull
+cd ../..
 ```
 
-
+Finally:
+* update package.json to new version e.g. 4.6.6-2
+* commit all (including core/client)
 
 ### General notes
 
