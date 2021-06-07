@@ -14,16 +14,14 @@ const knexMigrator = new KnexMigrator();
 // Ghost Internals
 const config = require('../../core/shared/config');
 const boot = require('../../core/boot');
-const {events} = require('../../core/server/lib/common');
 const db = require('../../core/server/data/db');
 const models = require('../../core/server/models');
-const notify = require('../../core/server/notify');
 const urlService = require('../../core/frontend/services/url');
 const settingsService = require('../../core/server/services/settings');
 const frontendSettingsService = require('../../core/frontend/services/settings');
 const settingsCache = require('../../core/server/services/settings/cache');
 const web = require('../../core/server/web');
-const themeService = require('../../core/frontend/services/themes');
+const themeService = require('../../core/server/services/themes');
 const limits = require('../../core/server/services/limits');
 
 // Other Test Utilities
@@ -233,9 +231,7 @@ const freshModeGhostStart = async (options) => {
     await knexMigrator.reset({force: true});
 
     // Stop the serve (forceStart Mode)
-    if (ghostServer && ghostServer.httpServer) {
-        await ghostServer.stop();
-    }
+    await stopGhost();
 
     // Reset the settings cache
     // @TODO: Prob A: why/how is this different to using settingsService.init() and why to do we need this?
@@ -292,6 +288,7 @@ const startGhost = async (options) => {
 const stopGhost = async () => {
     if (ghostServer && ghostServer.httpServer) {
         await ghostServer.stop();
+        delete require.cache[require.resolve('../../core/app')];
         urlService.resetGenerators();
     }
 };

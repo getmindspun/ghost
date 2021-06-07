@@ -7,7 +7,7 @@ const models = require('../../models');
 const membersService = require('../../services/members');
 
 const settingsCache = require('../../services/settings/cache');
-const {i18n} = require('../../lib/common');
+const i18n = require('../../../shared/i18n');
 const _ = require('lodash');
 
 const allowedIncludes = ['email_recipients', 'products'];
@@ -40,7 +40,7 @@ module.exports = {
         permissions: true,
         validation: {},
         async query(frame) {
-            frame.options.withRelated = ['labels', 'stripeSubscriptions', 'stripeSubscriptions.customer'];
+            frame.options.withRelated = ['labels', 'stripeSubscriptions', 'stripeSubscriptions.customer', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct'];
             const page = await membersService.api.members.list(frame.options);
 
             return page;
@@ -65,7 +65,7 @@ module.exports = {
         },
         permissions: true,
         async query(frame) {
-            const defaultWithRelated = ['labels', 'stripeSubscriptions', 'stripeSubscriptions.customer'];
+            const defaultWithRelated = ['labels', 'stripeSubscriptions', 'stripeSubscriptions.customer', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct'];
 
             if (!frame.options.withRelated) {
                 frame.options.withRelated = defaultWithRelated;
@@ -109,7 +109,7 @@ module.exports = {
         permissions: true,
         async query(frame) {
             let member;
-            frame.options.withRelated = ['stripeSubscriptions', 'stripeSubscriptions.customer'];
+            frame.options.withRelated = ['stripeSubscriptions', 'products', 'labels', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct'];
             try {
                 if (!membersService.config.isStripeConnected()
                     && (frame.data.members[0].stripe_customer_id || frame.data.members[0].comped)) {
@@ -126,7 +126,10 @@ module.exports = {
                 member = await membersService.api.members.create(frame.data.members[0], frame.options);
 
                 if (frame.data.members[0].stripe_customer_id) {
-                    await membersService.api.members.linkStripeCustomer(frame.data.members[0].stripe_customer_id, member);
+                    await membersService.api.members.linkStripeCustomer({
+                        customer_id: frame.data.members[0].stripe_customer_id,
+                        member_id: member.id
+                    }, frame.options);
                 }
 
                 if (frame.data.members[0].comped) {
@@ -185,7 +188,7 @@ module.exports = {
         permissions: true,
         async query(frame) {
             try {
-                frame.options.withRelated = ['stripeSubscriptions', 'labels'];
+                frame.options.withRelated = ['stripeSubscriptions', 'products', 'labels', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct'];
                 const member = await membersService.api.members.update(frame.data.members[0], frame.options);
 
                 const hasCompedSubscription = !!member.related('stripeSubscriptions').find(sub => sub.get('plan_nickname') === 'Complimentary' && sub.get('status') === 'active');
@@ -197,10 +200,10 @@ module.exports = {
                         await membersService.api.members.cancelComplimentarySubscription(member);
                     }
 
-                    await member.load(['stripeSubscriptions']);
+                    await member.load(['stripeSubscriptions', 'products', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct']);
                 }
 
-                await member.load(['stripeSubscriptions.customer']);
+                await member.load(['stripeSubscriptions.customer', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct']);
 
                 return member;
             } catch (error) {
@@ -255,7 +258,51 @@ module.exports = {
                 }
             });
             let model = await membersService.api.members.get({id: frame.options.id}, {
-                withRelated: ['labels', 'stripeSubscriptions', 'stripeSubscriptions.customer']
+                withRelated: ['labels', 'products', 'stripeSubscriptions', 'stripeSubscriptions.customer', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct']
+            });
+            if (!model) {
+                throw new errors.NotFoundError({
+                    message: i18n.t('errors.api.members.memberNotFound')
+                });
+            }
+
+            return model;
+        }
+    },
+
+    createSubscription: {
+        statusCode: 200,
+        headers: {},
+        options: [
+            'id'
+        ],
+        data: [
+            'stripe_price_id'
+        ],
+        validation: {
+            options: {
+                id: {
+                    required: true
+                }
+            },
+            data: {
+                stripe_price_id: {
+                    required: true
+                }
+            }
+        },
+        permissions: {
+            method: 'edit'
+        },
+        async query(frame) {
+            await membersService.api.members.createSubscription({
+                id: frame.options.id,
+                subscription: {
+                    stripe_price_id: frame.data.stripe_price_id
+                }
+            });
+            let model = await membersService.api.members.get({id: frame.options.id}, {
+                withRelated: ['labels', 'products', 'stripeSubscriptions', 'stripeSubscriptions.customer', 'stripeSubscriptions.stripePrice', 'stripeSubscriptions.stripePrice.stripeProduct']
             });
             if (!model) {
                 throw new errors.NotFoundError({

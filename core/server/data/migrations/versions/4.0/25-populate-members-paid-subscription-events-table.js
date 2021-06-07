@@ -29,6 +29,16 @@ module.exports = createTransactionalMigration(
             if (interval === 'month') {
                 return amount;
             }
+
+            if (interval === 'week') {
+                return amount * 4;
+            }
+
+            if (interval === 'day') {
+                return amount * 30;
+            }
+
+            throw new Error(`Unknown Subscription interval "${interval}" found.`);
         }
 
         const allEvents = allSubscriptions.reduce((allEventsAcc, subscription) => {
@@ -36,11 +46,15 @@ module.exports = createTransactionalMigration(
                 return allEventsAcc;
             }
 
+            if (!['year', 'month', 'week', 'day'].includes(subscription.plan_interval)) {
+                return allEventsAcc;
+            }
+
             const events = [];
 
             if (subscription.status === 'trialing') {
                 const subscriptionCreatedEvent = {
-                    id: ObjectID.generate(),
+                    id: ObjectID().toHexString(),
                     member_id: subscription.member_id,
                     from_plan: null,
                     to_plan: subscription.plan_id,
@@ -52,7 +66,7 @@ module.exports = createTransactionalMigration(
                 events.push(subscriptionCreatedEvent);
             } else {
                 const subscriptionCreatedEvent = {
-                    id: ObjectID.generate(),
+                    id: ObjectID().toHexString(),
                     member_id: subscription.member_id,
                     from_plan: null,
                     to_plan: subscription.plan_id,
@@ -69,7 +83,7 @@ module.exports = createTransactionalMigration(
 
             if (subscription.status === 'canceled') {
                 const subscriptionCancelledEvent = {
-                    id: ObjectID.generate(),
+                    id: ObjectID().toHexString(),
                     member_id: subscription.member_id,
                     from_plan: subscription.plan_id,
                     to_plan: null,

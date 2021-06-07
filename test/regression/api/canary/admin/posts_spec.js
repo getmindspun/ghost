@@ -255,7 +255,7 @@ describe('Posts API (canary)', function () {
 
     describe('Read', function () {
         it('can\'t retrieve non existent post', function (done) {
-            request.get(localUtils.API.getApiQuery(`posts/${ObjectId.generate()}/`))
+            request.get(localUtils.API.getApiQuery(`posts/${ObjectId().toHexString()}/`))
                 .set('Origin', config.get('url'))
                 .set('Accept', 'application/json')
                 .expect('Content-Type', /json/)
@@ -337,6 +337,37 @@ describe('Posts API (canary)', function () {
                 });
         });
 
+        it('read-only value do not cause errors when edited', function () {
+            return request
+                .get(localUtils.API.getApiQuery(`posts/${testUtils.DataGenerator.Content.posts[0].id}/`))
+                .set('Origin', config.get('url'))
+                .expect(200)
+                .then((res) => {
+                    return request
+                        .put(localUtils.API.getApiQuery('posts/' + testUtils.DataGenerator.Content.posts[0].id + '/'))
+                        .set('Origin', config.get('url'))
+                        .send({
+                            posts: [{
+                                frontmatter: 'hey!',
+                                plaintext: 'hello!',
+                                updated_at: res.body.posts[0].updated_at
+                            }]
+                        })
+                        .expect('Content-Type', /json/)
+                        .expect('Cache-Control', testUtils.cacheRules.private)
+                        .expect(200);
+                })
+                .then((res) => {
+                    // NOTE: when ONLY ignored fields are posted they should not change a thing, thus cache stays untouched
+                    should.not.exist(res.headers['x-cache-invalidate']);
+
+                    should.exist(res.body.posts);
+                    should.exist(res.body.posts[0].published_at);
+                    should.equal(res.body.posts[0].frontmatter, null);
+                    should.equal(res.body.posts[0].plaintext, testUtils.DataGenerator.Content.posts[0].plaintext);
+                });
+        });
+
         it('html to plaintext', function () {
             return request
                 .get(localUtils.API.getApiQuery(`posts/${testUtils.DataGenerator.Content.posts[0].id}/`))
@@ -394,8 +425,8 @@ describe('Posts API (canary)', function () {
 
         it('update dates & x_by', function () {
             const post = {
-                created_by: ObjectId.generate(),
-                updated_by: ObjectId.generate(),
+                created_by: ObjectId().toHexString(),
+                updated_by: ObjectId().toHexString(),
                 created_at: moment().add(2, 'days').format(),
                 updated_at: moment().add(2, 'days').format()
             };
@@ -604,12 +635,46 @@ describe('Posts API (canary)', function () {
                     should.equal(res.body.posts[0].plaintext, undefined);
                 });
         });
+
+        it('errors with invalid email recipient filter', function () {
+            return request
+                .post(localUtils.API.getApiQuery('posts/'))
+                .set('Origin', config.get('url'))
+                .send({
+                    posts: [{
+                        title: 'Ready to be emailed',
+                        status: 'draft'
+                    }]
+                })
+                .expect('Content-Type', /json/)
+                .expect('Cache-Control', testUtils.cacheRules.private)
+                .expect(201)
+                .then((res) => {
+                    return request
+                        .put(`${localUtils.API.getApiQuery(`posts/${res.body.posts[0].id}/`)}?email_recipient_filter=not a filter`)
+                        .set('Origin', config.get('url'))
+                        .send({
+                            posts: [{
+                                title: res.body.posts[0].title,
+                                mobilecdoc: res.body.posts[0].mobilecdoc,
+                                updated_at: res.body.posts[0].updated_at,
+                                status: 'published'
+                            }]
+                        })
+                        .expect('Content-Type', /json/)
+                        .expect('Cache-Control', testUtils.cacheRules.private)
+                        .expect(400);
+                })
+                .then((res) => {
+                    res.text.should.match(/invalid filter/i);
+                });
+        });
     });
 
     describe('Destroy', function () {
         it('non existent post', function () {
             return request
-                .del(localUtils.API.getApiQuery('posts/' + ObjectId.generate() + '/'))
+                .del(localUtils.API.getApiQuery('posts/' + ObjectId().toHexString() + '/'))
                 .set('Origin', config.get('url'))
                 .set('Accept', 'application/json')
                 .expect('Content-Type', /json/)

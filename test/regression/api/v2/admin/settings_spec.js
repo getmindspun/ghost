@@ -38,6 +38,10 @@ const defaultSettingsKeyTypes = [
     {key: 'members_reply_address', type: 'members'},
     {key: 'members_paid_signup_redirect', type: 'members'},
     {key: 'members_free_signup_redirect', type: 'members'},
+    {key: 'members_free_price_name', type: 'members'},
+    {key: 'members_free_price_description', type: 'members'},
+    {key: 'members_monthly_price_id', type: 'members'},
+    {key: 'members_yearly_price_id', type: 'members'},
     {key: 'stripe_product_name', type: 'members'},
     {key: 'stripe_plans', type: 'members'},
     {key: 'stripe_secret_key', type: 'members'},
@@ -73,7 +77,9 @@ const defaultSettingsKeyTypes = [
     {key: 'firstpromoter', type: 'firstpromoter'},
     {key: 'firstpromoter_id', type: 'firstpromoter'},
     {key: 'oauth_client_id', type: 'oauth'},
-    {key: 'oauth_client_secret', type: 'oauth'}
+    {key: 'oauth_client_secret', type: 'oauth'},
+    {key: 'editor_default_email_recipients', type: 'editor'},
+    {key: 'editor_default_email_recipients_filter', type: 'editor'}
 ];
 
 describe('Settings API (v2)', function () {
@@ -148,7 +154,7 @@ describe('Settings API (v2)', function () {
                 });
         });
 
-        xit('Can not request settings by group, returns all settings instead', function () {
+        it('Can not request settings by group, returns all settings instead', function () {
             return request.get(localUtils.API.getApiQuery(`settings/?group=theme`))
                 .set('Origin', config.get('url'))
                 .expect('Content-Type', /json/)
@@ -164,8 +170,8 @@ describe('Settings API (v2)', function () {
                     jsonResponse.settings.should.be.an.Object();
                     const settings = jsonResponse.settings;
 
-                    Object.keys(settings).length.should.equal(39);
-                    settings.map(s => s.key).should.deepEqual(defaultSettingsKeyTypes);
+                    Object.keys(settings).length.should.equal(defaultSettingsKeyTypes.length);
+                    settings.map(s => s.key).sort().should.eql(defaultSettingsKeyTypes.map(s => s.key).sort());
 
                     localUtils.API.checkResponse(jsonResponse, 'settings');
                 });

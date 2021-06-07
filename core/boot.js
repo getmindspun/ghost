@@ -55,13 +55,6 @@ async function initDatabase({config, logging}) {
  */
 async function initCore({ghostServer}) {
     debug('Begin: initCore');
-
-    // Initialize Ghost core internationalization - this is basically used to colocate all of our error message strings
-    debug('Begin: i18n');
-    const {i18n} = require('./server/lib/common');
-    i18n.init();
-    debug('End: i18n');
-
     // Models are the heart of Ghost - this is a syncronous operation
     debug('Begin: models');
     const models = require('./server/models');
@@ -107,7 +100,7 @@ async function initFrontend() {
     debug('End: Frontend Settings');
 
     debug('Begin: Themes');
-    const themeService = require('./frontend/services/themes');
+    const themeService = require('./server/services/themes');
     await themeService.init();
     debug('End: Themes');
 
@@ -134,15 +127,18 @@ async function initExpressApps() {
 async function initServices({config}) {
     debug('Begin: initServices');
 
+    const defaultApiVersion = config.get('api:versions:default');
+    debug(`Default API Version: ${defaultApiVersion}`);
+
     debug('Begin: Dynamic Routing');
     // Dynamic routing is generated from the routes.yaml file, which is part of the settings service
     // When Ghost's DB and core are loaded, we can access this file and call routing.bootstrap.start
     // However this _must_ happen after the express Apps are loaded, hence why this is here and not in initFrontend
     // Routing is currently tightly coupled between the frontend and backend
     const routing = require('./frontend/services/routing');
-    const themeService = require('./frontend/services/themes');
-    // We pass the themeService API version here, so that the frontend services are slightly less tightly-coupled
-    routing.bootstrap.start(themeService.getApiVersion());
+    const bridge = require('./bridge');
+    // We pass the frontend API version here, so that the frontend services are slightly less tightly-coupled
+    routing.bootstrap.start(bridge.getFrontendApiVersion());
     const settings = require('./server/services/settings');
     const frontendSettings = require('./frontend/services/settings');
     const getRoutesHash = () => frontendSettings.getCurrentHash('routes');
@@ -150,6 +146,7 @@ async function initServices({config}) {
     debug('End: Dynamic Routing');
 
     debug('Begin: Services');
+    const members = require('./server/services/members');
     const permissions = require('./server/services/permissions');
     const xmlrpc = require('./server/services/xmlrpc');
     const slack = require('./server/services/slack');
@@ -161,18 +158,20 @@ async function initServices({config}) {
 
     const urlUtils = require('./shared/url-utils');
 
+    // NOTE: limits service has to be initialized first
+    // in case it limits initialization of any other service (e.g. webhooks)
+    await limits.init();
+
     await Promise.all([
+        members.init(),
         permissions.init(),
         xmlrpc.listen(),
         slack.listen(),
         mega.listen(),
         webhooks.listen(),
         appService.init(),
-        limits.init(),
         scheduling.init({
-            // NOTE: When changing API version need to consider how to migrate custom scheduling adapters
-            //       that rely on URL to lookup persisted scheduled records (jobs, etc.). Ref: https://github.com/TryGhost/Ghost/pull/10726#issuecomment-489557162
-            apiUrl: urlUtils.urlFor('api', {version: 'v4', versionType: 'admin'}, true)
+            apiUrl: urlUtils.urlFor('api', {version: defaultApiVersion, versionType: 'admin'}, true)
         })
     ]);
     debug('End: Services');
@@ -205,7 +204,7 @@ async function initBackgroundServices({config}) {
     }
 
     // Load all inactive themes
-    const themeService = require('./frontend/services/themes');
+    const themeService = require('./server/services/themes');
     themeService.loadInactiveThemes();
 
     debug('End: initBackgroundServices');
@@ -263,11 +262,21 @@ async function bootGhost() {
         require('./shared/sentry');
         debug('End: Load sentry');
 
+        // I18n is basically used to colocate all of our error message strings & required to log server start messages
+        debug('Begin: i18n');
+        const i18n = require('./shared/i18n');
+        i18n.init();
+        debug('End: i18n');
+
+        debug('Begin: Load urlUtils');
+        const urlUtils = require('./shared/url-utils');
+        debug('End: Load urlUtils');
+
         // Step 2 - Start server with minimal app in global maintenance mode
         debug('Begin: load server + minimal app');
         const rootApp = require('./app');
         const GhostServer = require('./server/ghost-server');
-        ghostServer = new GhostServer();
+        ghostServer = new GhostServer({url: urlUtils.urlFor('home', true)});
         await ghostServer.start(rootApp);
         bootLogger.log('server started');
         debug('End: load server + minimal app');
@@ -288,7 +297,6 @@ async function bootGhost() {
 
         // Step 5 - Mount the full Ghost app onto the minimal root app & disable maintenance mode
         debug('Begin: mountGhost');
-        const urlUtils = require('./shared/url-utils');
         rootApp.disable('maintenance');
         rootApp.use(urlUtils.getSubdir(), ghostApp);
         debug('End: mountGhost');
