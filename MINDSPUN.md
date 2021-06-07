@@ -19,11 +19,11 @@ git checkout steady
 git merge <TAG>
 ```
 
-* Check .github directory
+* Check that .github directory is empty then continue.
 
 ```
 git tag <TAG> # e.g. v4.2.0-1
-git push
+git push && git push --tags
 ```
 
 * Verify the submodule is on the right commit and go back to the top of the Ghost repo.
